@@ -5,54 +5,40 @@ from decimal import Decimal
 import re
 
 
-#BIT_SITE_URL = 'https://localbitcoins.com/ru/'
-
-HOST = "89.40.114.206"
-PORT = 8080
-
-
 class BitParser():
-
     BIT_SITE_URL = 'https://localbitcoins.com/'
-    buy_list_url = 'https://localbitcoins.com/ru/' \
-                   'buy-bitcoins-online/RU/russian-federation/perevody-cherez-konkretnyi-bank/'
-    sell_list_url = 'https://localbitcoins.com/ru/' \
-                    'sell-bitcoins-online/RU/russian-federation/perevody-cherez-konkretnyi-bank/'
+    BUY_ADS_URL = 'ru/buy-bitcoins-online/RU/russian-federation/perevody-cherez-konkretnyi-bank/'
+    SELL_ADS_URL = 'ru/sell-bitcoins-online/RU/russian-federation/perevody-cherez-konkretnyi-bank/'
 
-    my_path="/Users/MacBook/Library/Application Support/Firefox/Profiles/ynjsgjro.default"
+    SLEEP_TIME = 3
 
-    def __init__(self):
-        self.profile = webdriver.FirefoxProfile('/Users/MacBook/Library/Application Support/Firefox/Profiles/ynjsgjro.default')
+    def __init__(self, profile_path):
+        self.profile = webdriver.FirefoxProfile(profile_path)
         self.driver = webdriver.Firefox(firefox_profile=self.profile)
 
     def parse_best_ad(self, purpose, bank_name, stop_list, good_words):
         if purpose == 'buy':
-            url = self.buy_list_url
+            url = self.BIT_SITE_URL + self.BUY_ADS_URL
             is_desc = False
         elif purpose == 'sell':
-            url = self.sell_list_url
+            url = self.BIT_SITE_URL + self.SELL_ADS_URL
             is_desc = True
         else:
             return None
         self.go_to_url(url)
-        sleep(3)
+        sleep(self.SLEEP_TIME)
         page_count = self.parse_page_count()
         ads = []
-        for page in range(1, page_count+1):
+        for page in range(1, page_count + 1):
             if page != 1:
                 self.go_to_url('{}?page={}'.format(url, page))
-                sleep(3)
-            while self.check_captcha():
-                print('Введите капчу!')
-                sleep(5)
+                sleep(self.SLEEP_TIME)
             ads.extend(list(self.collect_ads_from_page()))
         ads = sorted(ads, key=lambda ad: ad['price'], reverse=is_desc)
 
         for ad in ads:
             self.driver.get(ad['url'])
-            print('Try to ', ad)
             if self.check_entry_conditions(bank_name, stop_list, good_words):
-                print(ad)
                 return ad
 
     def check_entry_conditions(self, required_list, stop_list, not_stop_words):
@@ -97,7 +83,7 @@ class BitParser():
         }
 
     def collect_ads_from_page(self):
-        sleep(3)
+        sleep(self.SLEEP_TIME)
         table = self.driver.find_elements_by_class_name('table-bitcoins')[0]
         soup = BeautifulSoup(table.get_attribute('innerHTML'), 'html.parser')
         for ad in soup.find_all('tr')[1:]:
@@ -137,15 +123,12 @@ class BitParser():
         try:
             self.driver.get(url)
         except:
-            sleep(3)
+            sleep(self.SLEEP_TIME)
             self.driver.get(url)
 
 
-
-
 if __name__ == '__main__':
-    parser = BitParser()
-    #parser.request_main()
+    parser = BitParser('/Users/MacBook/Library/Application Support/Firefox/Profiles/ynjsgjro.default')
     while True:
-        print(parser.parse_best_ad('Сбербанк', ['Киви', 'Qiwi']))
+        print(parser.parse_best_ad('Сбербанк', ['Киви', 'Qiwi'], ['Kiwi'], ['Sber']))
         sleep(60)
